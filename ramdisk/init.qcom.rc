@@ -238,7 +238,6 @@ on post-fs-data
     chown mot_pwric mot_pwric /sys/module/qpnp_charger/parameters/chrg_timestamp
 
     start batt_health
-
 on early-boot
     # set RLIMIT_MEMLOCK to 64MB
     setrlimit 8 67108864 67108864
@@ -485,27 +484,6 @@ service batt_health /system/bin/batt_health
     group mot_pwric
     disabled
 
-on property:vold.decrypt=trigger_restart_framework
-    start config_bluetooth
-
-service config_bluetooth /system/bin/sh /system/etc/init.qcom.bt.sh
-    class core
-    user root
-    oneshot
-
-on property:bluetooth.hciattach=false
-    setprop bluetooth.status off
-
-on property:bluetooth.hciattach=true
-    start hciattach
-
-service hciattach /system/bin/sh /system/etc/init.qcom.bt.sh
-    class late_start
-    user bluetooth
-    group bluetooth net_bt_admin
-    disabled
-    oneshot
-
 service hw_revs /system/bin/hardware_revisions.sh
     class main
     user system
@@ -528,14 +506,6 @@ service mmi-boot-sh /system/bin/sh /init.mmi.boot.sh
     user root
     oneshot
 
-on property:persist.radio.multisim.config=dsds
-    stop ril-daemon
-    start ril-daemon
-    start ril-daemon1
-
-on property:vold.decrypt=trigger_restart_framework
-    stop ril-daemon
-
 service_redefine ril-daemon /system/bin/rild
     class main
     socket rild stream 660 root radio
@@ -544,13 +514,19 @@ service_redefine ril-daemon /system/bin/rild
     user root
     group radio cache inet misc audio sdcard_rw qcom_oncrpc qcom_diag log net_raw diag
 
-service ril-daemon1 /system/bin/rild -c 2
+service ril-daemon2 /system/bin/rild -c 2
     class main
     socket rild2 stream 660 root radio
     socket rild-debug2 stream 660 radio system
     user root
     group radio cache inet misc audio sdcard_rw qcom_oncrpc qcom_diag log net_raw diag
     disabled
+
+service rild2-wrapper /system/bin/sh /init.qcom.ril.sh
+    class late_start
+    user root
+    group root
+    oneshot
 
 service mmi-touch-sh /system/bin/sh /init.mmi.touch.sh synaptics aps
     class late_start
@@ -629,12 +605,6 @@ service wcnss-service /system/bin/wcnss_service
     user root
     group system wifi
     oneshot
-
-service wifi-crda /system/bin/sh /system/etc/init.crda.sh
-   class late_start
-   user root
-   disabled
-   oneshot
 
 # WPA
 service p2p_supplicant /system/bin/wpa_supplicant \
